@@ -1,4 +1,4 @@
-// Get DOM elements
+// DOM elements
 const fileInput = document.querySelector("#upload");
 const sizeElement = document.querySelector("#sizeRange");
 const colorElements = document.getElementsByName("colorRadio");
@@ -8,14 +8,15 @@ const saveImg = document.querySelector(".save-img");
 const saveImgOri = document.querySelector(".save-img-ori");
 const saveImgBinary = document.querySelector(".save-img-binary");
 const sendPicWish = document.querySelector(".send-picwish");
+let imageApi = null;
 
-// Initialize variables
+// Variables
 let originalImage = null;
-let size = sizeElement.value;
-let color;
+let size = 20;
+let color = "rgba(227, 7, 19, 0.75)";
 
 // Function to convert file to Data URI
-async function fileToDataUri(field) {
+async function fileToDataUri(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
 
@@ -23,7 +24,7 @@ async function fileToDataUri(field) {
             resolve(reader.result);
         });
 
-        reader.readAsDataURL(field);
+        reader.readAsDataURL(file);
     });
 }
 
@@ -42,27 +43,29 @@ function drawOnImage(image = null) {
     context.lineJoin = "round";
     context.lineCap = "round";
 
-    canvasElement.onmousedown = (e) => {
+    let isDrawing = false;
+
+    canvasElement.addEventListener("mousedown", (e) => {
         isDrawing = true;
         context.beginPath();
         context.moveTo(e.clientX, e.clientY);
-    };
+    });
 
-    canvasElement.onmousemove = (e) => {
+    canvasElement.addEventListener("mousemove", (e) => {
         if (isDrawing) {
             context.lineTo(e.clientX, e.clientY);
             context.stroke();
         }
-    };
+    });
 
-    canvasElement.onmouseup = () => {
+    canvasElement.addEventListener("mouseup", () => {
         isDrawing = false;
         context.closePath();
-    };
+    });
 
-    clearElement.onclick = () => {
+    clearElement.addEventListener("click", () => {
         context.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    };
+    });
 }
 
 // Function to save Canvas image
@@ -73,14 +76,9 @@ function saveCanvasImage() {
     link.click();
 }
 
-// Event Listener for changing brush size
+// Event Listeners
 sizeElement.addEventListener("input", (e) => {
     size = e.target.value;
-});
-
-// Event Listeners for color selection
-colorElements.forEach((c) => {
-    if (c.checked) color = c.value;
 });
 
 colorElements.forEach((c) => {
@@ -89,7 +87,6 @@ colorElements.forEach((c) => {
     });
 });
 
-// Event Listener for file input
 fileInput.addEventListener("change", async (e) => {
     const [file] = fileInput.files;
     const image = document.createElement("img");
@@ -101,10 +98,8 @@ fileInput.addEventListener("change", async (e) => {
     });
 });
 
-// Event Listener for saving Canvas image
 saveImg.addEventListener("click", saveCanvasImage);
 
-// Event Listener for saving original image
 saveImgOri.addEventListener("click", () => {
     const link = document.createElement("a");
     link.download = `${Date.now()}.jpg`;
@@ -117,112 +112,92 @@ saveImgOri.addEventListener("click", () => {
     }
 });
 
-// Event Listener for saving binary mask image
 saveImgBinary.addEventListener("click", () => {
-    // Get the image data from the canvas
     const imageData = canvasElement.getContext("2d").getImageData(0, 0, canvasElement.width, canvasElement.height);
     const data = imageData.data;
 
-    // Define the RGB color to change to white
     const targetColor = [227, 7, 19];
 
-    // Perform color transformation
     for (let i = 0; i < data.length; i += 4) {
         const red = data[i];
         const green = data[i + 1];
         const blue = data[i + 2];
 
-        // Check color and change to white if it matches the target color
         if (red === targetColor[0] && green === targetColor[1] && blue === targetColor[2]) {
-            data[i] = 255; // R
-            data[i + 1] = 255; // G
-            data[i + 2] = 255; // B
+            data[i] = 255;
+            data[i + 1] = 255;
+            data[i + 2] = 255;
         } else {
-            // Not the target color, change to black
-            data[i] = 0; // R
-            data[i + 1] = 0; // G
-            data[i + 2] = 0; // B
+            data[i] = 0;
+            data[i + 1] = 0;
+            data[i + 2] = 0;
         }
     }
 
-    // Create Data URL and trigger download
     const link = document.createElement("a");
     link.download = `${Date.now()}_binary.jpg`;
+
     const tempCanvas = document.createElement("canvas");
     const tempContext = tempCanvas.getContext("2d");
     tempCanvas.width = canvasElement.width;
     tempCanvas.height = canvasElement.height;
     tempContext.putImageData(imageData, 0, 0);
+
     link.href = tempCanvas.toDataURL("image/jpeg");
     link.click();
 });
 
-// Event Listener for sending a picture wish
 sendPicWish.addEventListener("click", async () => {
-    // Define API URL and key
-    const apiUrl = "https://techhk.aoscdn.com/api/tasks/visual/inpaint";
-    const apiKey = "wx3fdwlu6wk6hjv8j";
+    const apiUrl = "https://techhk.aoscdn.com/api/tasks/visual/inpaint"; // Replace with your API URL
+    const apiKey = "wxpq9zkdv2tuevo5l"; // Replace with your API key
 
-    // Create a FormData object and append sync parameter
     const formData = new FormData();
     formData.append("sync", "1");
 
-    // Check if originalImage is available
-    if (originalImage) {
-        // Create a canvas with the same dimensions as originalImage
-        const canvas = document.createElement("canvas");
-        canvas.width = originalImage.width;
-        canvas.height = originalImage.height;
-        const context = canvas.getContext("2d");
-        context.drawImage(originalImage, 0, 0);
+    if (originalImage || imageApi) {
+        const sourceImage = imageApi ? imageApi : originalImage;
 
-        // Convert canvas to a Blob and append it as a File to the formData
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceImage.width;
+        canvas.height = sourceImage.height;
+        const context = canvas.getContext("2d");
+        context.drawImage(sourceImage, 0, 0);
+
         canvas.toBlob(async (blob) => {
             const imageFile = new File([blob], "image.jpg");
             formData.append("image_file", imageFile);
 
-            // Get the image data from the canvas (the modified binary mask)
             const imageData = canvasElement.getContext("2d").getImageData(0, 0, canvasElement.width, canvasElement.height);
             const data = imageData.data;
 
-            // Define the target RGB color to change to white
             const targetColor = [227, 7, 19];
 
-            // Perform color transformation
             for (let i = 0; i < data.length; i += 4) {
                 const red = data[i];
                 const green = data[i + 1];
                 const blue = data[i + 2];
 
-                // Check color and change to white if it matches the target color
                 if (red === targetColor[0] && green === targetColor[1] && blue === targetColor[2]) {
-                    data[i] = 255; // R
-                    data[i + 1] = 255; // G
-                    data[i + 2] = 255; // B
+                    data[i] = 255;
+                    data[i + 1] = 255;
+                    data[i + 2] = 255;
                 } else {
-                    // Not the target color, change to black
-                    data[i] = 0; // R
-                    data[i + 1] = 0; // G
-                    data[i + 2] = 0; // B
+                    data[i] = 0;
+                    data[i + 1] = 0;
+                    data[i + 2] = 0;
                 }
             }
 
-            // Create a new canvas for the modified binary mask
-            
             const maskCanvas = document.createElement("canvas");
             const maskContext = maskCanvas.getContext("2d");
             maskCanvas.width = canvasElement.width;
             maskCanvas.height = canvasElement.height;
             maskContext.putImageData(imageData, 0, 0);
-           
 
-            // Convert the mask canvas to a Blob and append it as a File to the formData
             maskCanvas.toBlob((maskBlob) => {
                 const maskFile = new File([maskBlob], "mask.jpg");
-                console.log("mask : ",maskFile)
                 formData.append("mask_file", maskFile);
 
-                // Send the formData with both image and mask files to the API
                 fetch(apiUrl, {
                     method: "POST",
                     headers: {
@@ -232,13 +207,35 @@ sendPicWish.addEventListener("click", async () => {
                 })
                     .then(function (response) {
                         if (response.ok) {
-                            return response.text();
+                            return response.json();
                         } else {
-                            throw new Error("เกิดข้อผิดพลาดในการส่งรูปภาพ");
+                            throw new Error("An error occurred while sending the image.");
                         }
                     })
                     .then(function (data) {
                         console.log(data);
+
+                        const imageUrl = data.data.image;
+
+                        if (imageUrl) {
+                            const img = new Image();
+                            img.crossOrigin = "Anonymous";
+                            img.onload = function () {
+                                const context = canvasElement.getContext("2d");
+                                context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                                canvasElement.width = img.width;
+                                canvasElement.height = img.height;
+                                context.drawImage(img, 0, 0, img.width, img.height);
+                                context.lineWidth = size;
+                                context.strokeStyle = color;
+                                context.lineJoin = "round";
+                                context.lineCap = "round";
+                                imageApi = img;
+                            };
+                            img.src = imageUrl;
+                        } else {
+                            console.error("No image URL found in the API response.");
+                        }
                     })
                     .catch(function (error) {
                         console.error(error);
@@ -249,7 +246,3 @@ sendPicWish.addEventListener("click", async () => {
         alert("Please Upload Image Before Sending.");
     }
 });
-
-  
-
-
