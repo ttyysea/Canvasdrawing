@@ -12,7 +12,7 @@ let imageApi = null;
 
 // Variables
 let originalImage = null;
-let size = 20;
+let size =  sizeElement.value;
 let color = "rgba(227, 7, 19, 0.75)";
 
 // Function to convert file to Data URI
@@ -78,7 +78,10 @@ function saveCanvasImage() {
 
 // Event Listeners
 sizeElement.addEventListener("input", (e) => {
+    const context = canvasElement.getContext("2d");
     size = e.target.value;
+    context.lineWidth = size;
+    console.log("size :", size)
 });
 
 colorElements.forEach((c) => {
@@ -148,8 +151,8 @@ saveImgBinary.addEventListener("click", () => {
 });
 
 sendPicWish.addEventListener("click", async () => {
-    const apiUrl = "https://techhk.aoscdn.com/api/tasks/visual/inpaint"; // Replace with your API URL
-    const apiKey = "wxpq9zkdv2tuevo5l"; // Replace with your API key
+    const apiUrl = "https://techhk.aoscdn.com/api/tasks/visual/inpaint"; 
+    const apiKey = "wxl2fcluq9l4fu6so";
 
     const formData = new FormData();
     formData.append("sync", "1");
@@ -218,6 +221,7 @@ sendPicWish.addEventListener("click", async () => {
                         const imageUrl = data.data.image;
 
                         if (imageUrl) {
+                            console.log("Processing...")
                             const img = new Image();
                             img.crossOrigin = "Anonymous";
                             img.onload = function () {
